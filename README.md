@@ -1,1 +1,1 @@
-# haskell-lambda-runtime
+# aws-lambda-runtime-api
