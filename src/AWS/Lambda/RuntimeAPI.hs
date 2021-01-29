@@ -3,11 +3,39 @@ module AWS.Lambda.RuntimeAPI
 	) where
 
 import AWS.Lambda.RuntimeAPI.Types
-import UnliftIO.Exception
-import UnliftIO
-import Network.HTTP.Simple
+import Data.Aeson ( encode, eitherDecode' )
+import Data.List ( find )
 import System.Environment ( lookupEnv )
+import Text.Read ( readMaybe )
+import UnliftIO
+import qualified Data.ByteString.Char8 as C8
+import qualified Data.CaseInsensitive as CI
 import qualified Data.Map.Strict as Map
+import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Client.Internal as HTTP
+import qualified Network.HTTP.Types.Header as HTTP
+import qualified Network.HTTP.Types.Status as HTTP
+
+mkLambdaHeaderName :: (CI.FoldCase s, Semigroup s, IsString s) => s -> CI.CI s
+mkLambdaHeaderName str = CI.mk $ "Lambda-Runtime-" <> str
+
+requestIdHeader :: HTTP.HeaderName
+requestIdHeader = mkLambdaHeaderName "Aws-Request-Id"
+
+invokedFunctionArnHeader :: HTTP.HeaderName
+invokedFunctionArnHeader = mkLambdaHeaderName "Invoked-Function-Arn"
+
+traceIdHeader :: HTTP.HeaderName
+traceIdHeader = mkLambdaHeaderName "Trace-Id"
+
+clientContextHeader :: HTTP.HeaderName
+clientContextHeader = mkLambdaHeaderName "Client-Context"
+
+cognitoIdentityHeader :: HTTP.HeaderName
+cognitoIdentityHeader = mkLambdaHeaderName "Cognito-Identity"
+
+unhandledErrorHeader :: HTTP.Header
+unhandledErrorHeader = ( mkLambdaHeaderName "Function-Error-Type", "Unhandled" )
 
 apiVersion :: String
 apiVersion = "2018-06-01"
@@ -19,25 +47,36 @@ apiHostEnvVarName = "AWS_LAMBDA_RUNTIME_API"
 --   it loops indefinitely (until AWS terminates the process) on the retrieval of invocations. It feeds each of those
 --   invocations into the handler that was passed in as an argument. It then posts the result back to AWS and begins
 --   the loop again.
-runLambda :: (MonadUnliftIO m, MonadFail m, MonadThrow m, Generic a, FromJSON a, ToJSON b, NFData b) => (LambdaInvocation a -> m (LambdaResult b)) -> m ()
+runLambda :: (MonadUnliftIO m, MonadFail m, MonadThrow m, FromJSON a, ToJSON b, NFData b) => (LambdaInvocation a -> m (LambdaResult b)) -> m ()
 runLambda handler = do
+		ctx <- lookupLEC handler
+		forever $ doRound ctx
+
+lookupLEC :: (MonadUnliftIO m, MonadFail m) => (LambdaInvocation a -> m (LambdaResult b)) -> m (LambdaExecutionContext a m b)
+lookupLEC lecHandler = do
 		apiHost <- lookupApiHost
-		let apiPrefix = "http://" <> apiHost <> "/" <> apiVersion
-		forever $ doRound apiPrefix handler
+		let lecApiPrefix = "http://" <> apiHost <> "/" <> apiVersion
+		lecHttpManager <- liftIO $ HTTP.newManager managerSettings
+		return LambdaExecutionContext{..}
 	where
 		lookupApiHost = liftIO ( lookupEnv apiHostEnvVarName ) >>= \case
 			Nothing -> fail $ "No API host environment variable name found: " <> apiHostEnvVarName
 			Just val -> return val
+		managerSettings = HTTP.defaultManagerSettings
+			{ HTTP.managerResponseTimeout = HTTP.responseTimeoutNone
+			, HTTP.managerIdleConnectionCount = 1
+			}
 
-doRound :: (MonadUnliftIO m, MonadThrow m, Generic a, FromJSON a, ToJSON b, NFData b) => String -> (LambdaInvocation a -> m (LambdaResult b)) -> m ()
-doRound apiPrefix handler = handleAnyDeep handleTopException $ do
-		invocation <- fetchNext apiPrefix
+doRound :: (MonadUnliftIO m, MonadThrow m, MonadFail m, FromJSON a, ToJSON b, NFData b) => LambdaExecutionContext a m b -> m ()
+doRound ctx = handleAnyDeep handleTopException $ do
+		invocation <- fetchNext ctx
 		result <- processRequest invocation
-		postResult apiPrefix invocation result
+		postResult ctx invocation result
 	where
+		handler = lecHandler ctx
 		processRequest invoc = handleAnyDeep handleException $ handler invoc
 		handleException e = return $ LambdaError (ct $ exToTypeStr e, ct $ exToHumanStr e)
-		handleTopException = handleInvocationException apiPrefix
+		handleTopException = handleInvocationException ctx
 
 exToTypeStr :: (Exception e) => e -> String
 exToTypeStr = show . typeOf
@@ -45,29 +84,31 @@ exToTypeStr = show . typeOf
 exToHumanStr :: (Exception e) => e -> String
 exToHumanStr = displayException
 
-handleInvocationException :: (MonadIO m, MonadThrow m, Exception e) => String -> e -> m ()
-handleInvocationException apiPrefix err = do
-		liftIO $ do
-			putStrLn "!!!Invocation Exception!!!"
-			putStrLn "\tThis is a problem with the Lambda Runtime API or AWS."
-			putStrLn "\tThe problem is not in your code."
-			putStrLn "\tThe Runtime API will now attempt to get another invocation."
-			putStrLn ""
-			printTypeStr
-			printHumanStr
-			putStrLn "^^^Invocation Exception^^^"
-		initReq <- parseRequest $ apiPrefix <> "/runtime/init/error"
+handleInvocationException :: (MonadIO m, Exception e) => LambdaExecutionContext a m b -> e -> m ()
+handleInvocationException
+	LambdaExecutionContext{lecApiPrefix, lecHttpManager}
+	err
+	= liftIO $ do
+		putStrLn "!!!Invocation Exception!!!"
+		putStrLn "\tThis is a problem with the Lambda Runtime API or AWS."
+		putStrLn "\tThe problem is not in your code."
+		putStrLn "\tThe Runtime API will now attempt to get another invocation."
+		putStrLn ""
+		printTypeStr
+		printHumanStr
+		putStrLn "^^^Invocation Exception^^^"
+		initReq <- makeHttpRequest "POST" url body
 		let req = initReq
-			& setRequestMethod "POST"
-			& setRequestBodyJSON (
-				Map.fromList
-					[ ( "errorMessage", humanStr )
-					, ( "errorType", typeStr )
-					]
-				)
-			& addRequestHeader "Lambda-Runtime-Function-Error-Type" "Unhandled"
-		void $ httpNoBody req
+			{ HTTP.requestHeaders = unhandledErrorHeader : HTTP.requestHeaders initReq
+			}
+		response <- HTTP.httpNoBody req lecHttpManager
+		checkResponseStatus response
 	where
+		url = lecApiPrefix <> "/runtime/init/error"
+		body = Just $ Map.fromList
+			[ ( "errorMessage", humanStr )
+			, ( "errorType", typeStr )
+			]
 		typeStr = exToTypeStr err
 		humanStr = exToHumanStr err
 		printTypeStr = putStrLn typeStr
@@ -77,30 +118,86 @@ handleInvocationException apiPrefix err = do
 			else
 				putStrLn $ exToHumanStr err
 
-fetchNext :: (MonadUnliftIO m, MonadThrow m, FromJSON a, Generic a) => String ->  m (LambdaInvocation a)
-fetchNext apiPrefix = do
-	response <- httpJSONEither fetchNextReq
-	case getResponseBody response of
-		(Left ex) -> throw ex
-		(Right invoc) -> return invoc
-	where
-		fetchNextReq::Request = fromString $ apiPrefix <> "/runtime/invocation/next"
+checkResponseStatus :: MonadFail m => HTTP.Response body -> m ()
+checkResponseStatus response =
+	let status = HTTP.responseStatus response in
+	if HTTP.statusIsSuccessful $ HTTP.responseStatus response then
+		return ()
+	else
+		fail $ "Received non-successful status when trying to fetch: " <> show status
 
-postResult :: (MonadUnliftIO m, MonadThrow m, ToJSON b) => String -> LambdaInvocation a -> LambdaResult b -> m ()
-postResult _ _ LambdaNop = return ()
-postResult apiPrefix LambdaInvocation{liAwsRequestId} (LambdaSuccess payload) = do
-	initReq <- parseRequest $ apiPrefix <> "/" <> ct liAwsRequestId <> "/response"
-	void . httpNoBody $ initReq
-		& setRequestMethod "Post"
-		& setRequestBodyJSON payload
-postResult apiPrefix LambdaInvocation{liAwsRequestId} (LambdaError (errType, errMsg)) = do
-		initReq <- parseRequest $ apiPrefix <> "/" <> ct liAwsRequestId <> "/error"
-		let req = initReq
-			& setRequestMethod "POST"
-			& setRequestBodyJSON reqBody
-		void $ httpNoBody req
+fetchNext :: (MonadUnliftIO m, MonadThrow m, MonadFail m, FromJSON a) => LambdaExecutionContext a m b ->  m (LambdaInvocation a)
+fetchNext LambdaExecutionContext{lecApiPrefix, lecHttpManager} = do
+		req <- makeHttpRequest "GET" url (Nothing::Maybe ())
+		response <- liftIO $ HTTP.httpLbs req lecHttpManager
+		checkResponseStatus response
+		liPayload <- readPayload response
+		liAwsRequestId <- readHeader response requestIdHeader
+		liDeadlineMs <- readDeadline response
+		liInvokedFunctionArn <- readHeader response invokedFunctionArnHeader
+		liTraceId <- readHeader response traceIdHeader
+		let liMobileMetadata = readMobileMetadata response
+		return $ LambdaInvocation{..}
 	where
-		reqBody = Map.fromList
-			[ ( "errorMessage", errMsg )
-			, ( "errorType", errType )
-			]
+		url = lecApiPrefix <> "/runtime/invocation/next"
+		readMobileMetadata response = do
+			mimClientContext <- readHeader response clientContextHeader
+			mimCognitoIdentity <- readHeader response cognitoIdentityHeader
+			return $ MobileInvocationMetadata{..}
+		readHeader response headerName =
+			let headers = HTTP.responseHeaders response in
+			let finder (otherHeaderName, _) = headerName == otherHeaderName in
+			case find finder headers of
+				Just (_,value) -> return . ct $ C8.unpack value
+				Nothing -> fail $ "Could not find header: " <> show headerName
+		readDeadline response = do
+			headerValue <- readHeader response "Lambda-Runtime-Deadline-Ms"
+			case readMaybe headerValue of
+				Nothing -> fail $ "Could not parse deadline header value: " <> headerValue
+				Just parsed -> return parsed
+		readPayload response =
+			let body = HTTP.responseBody response in
+			case eitherDecode' body of
+				Left err -> fail $ "Could not parse the body of the next invocation: " <> err
+				Right value -> return value
+
+makeHttpRequest :: (MonadThrow m, ToJSON b) => String -> String -> Maybe b -> m HTTP.Request
+makeHttpRequest method url maybeBody =
+		customizeRequest <$> HTTP.parseUrlThrow (method <> " " <> url)
+	where
+		customizeRequest initReq = initReq
+			{ HTTP.decompress = HTTP.alwaysDecompress
+			, HTTP.requestHeaders =
+				[ ( HTTP.hAccept, "application/json" )
+				, ( HTTP.hContentType, "application/json" )
+				]
+			, HTTP.requestBody = HTTP.RequestBodyLBS $ case maybeBody of
+					Nothing -> ""
+					Just body -> encode body
+			}
+
+postResult :: (MonadUnliftIO m, MonadThrow m, ToJSON b) => LambdaExecutionContext a m b -> LambdaInvocation a -> LambdaResult b -> m ()
+postResult
+	LambdaExecutionContext{lecApiPrefix, lecHttpManager}
+	LambdaInvocation{liAwsRequestId, liTraceId}
+	result =
+		case result of
+			LambdaNop -> return ()
+			(LambdaSuccess payload) -> do
+				let url = lecApiPrefix <> "/" <> ct liAwsRequestId <> "/response"
+				let body = Just payload
+				req <- addTraceId <$> makeHttpRequest "POST" url body
+				void . liftIO $ HTTP.httpNoBody req lecHttpManager
+			LambdaError (errType, errMsg) -> do
+				let url = lecApiPrefix <> "/" <> ct liAwsRequestId <> "/error"
+				let body = Just $ Map.fromList
+					[ ( "errorMessage", errMsg )
+					, ( "errorType", errType )
+					]
+				req <- makeHttpRequest "POST" url body
+				void . liftIO $ HTTP.httpNoBody req lecHttpManager
+	where
+		addTraceId req = req
+			{ HTTP.requestHeaders
+				= (traceIdHeader, C8.pack $ ct liTraceId) :  HTTP.requestHeaders req
+			}

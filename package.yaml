@@ -101,14 +101,16 @@ library:
   source-dirs: src
   dependencies:
   - aeson
+  - bytestring
+  - case-insensitive
   - containers
-  - http-conduit
-  - lens
+  - deepseq
+  - http-client
+  - http-types
+  - safe-exceptions
   - text
   - text-conversions
   - unliftio
-  - safe-exceptions
-  - deepseq
 
   # This is where the optimization flags should go
   ghc-options:
