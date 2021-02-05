@@ -47,7 +47,7 @@ apiHostEnvVarName = "AWS_LAMBDA_RUNTIME_API"
 --   it loops indefinitely (until AWS terminates the process) on the retrieval of invocations. It feeds each of those
 --   invocations into the handler that was passed in as an argument. It then posts the result back to AWS and begins
 --   the loop again.
-runLambda :: (MonadUnliftIO m, MonadFail m, MonadThrow m, FromJSON a, ToJSON b, NFData b) => (LambdaInvocation a -> m (LambdaResult b)) -> m ()
+runLambda :: (MonadUnliftIO m, MonadFail m, MonadThrow m, FromJSON a, ToJSON b, NFData a, NFData b) => (LambdaInvocation a -> m (LambdaResult b)) -> m ()
 runLambda handler = do
 		ctx <- lookupLEC handler
 		forever $ doRound ctx
@@ -67,16 +67,16 @@ lookupLEC lecHandler = do
 			, HTTP.managerIdleConnectionCount = 1
 			}
 
-doRound :: (MonadUnliftIO m, MonadThrow m, MonadFail m, FromJSON a, ToJSON b, NFData b) => LambdaExecutionContext a m b -> m ()
-doRound ctx = handleAnyDeep handleTopException $ do
-		invocation <- fetchNext ctx
-		result <- processRequest invocation
-		postResult ctx invocation result
+doRound :: (MonadUnliftIO m, MonadThrow m, MonadFail m, FromJSON a, ToJSON b, NFData a, NFData b) => LambdaExecutionContext a m b -> m ()
+doRound ctx = getNextInvocation >>= \case
+			Nothing -> return ()
+			Just request -> processRequest request >>= postResult ctx request
 	where
+		getNextInvocation = handleAnyDeep handleTopException ( Just <$> fetchNext ctx )
 		handler = lecHandler ctx
 		processRequest invoc = handleAnyDeep handleException $ handler invoc
 		handleException e = return $ LambdaError (ct $ exToTypeStr e, ct $ exToHumanStr e)
-		handleTopException = handleInvocationException ctx
+		handleTopException err = handleInvocationException ctx err >> return Nothing
 
 exToTypeStr :: (Exception e) => e -> String
 exToTypeStr = show . typeOf
@@ -91,7 +91,7 @@ handleInvocationException
 	= liftIO $ do
 		putStrLn "!!!Invocation Exception!!!"
 		putStrLn "\tThis is a problem with the Lambda Runtime API or AWS."
-		putStrLn "\tThe problem is not in your code."
+		putStrLn "\tThe problem is not in your code. Scroll down for details."
 		putStrLn "\tThe Runtime API will now attempt to get another invocation."
 		putStrLn ""
 		printTypeStr
@@ -184,12 +184,12 @@ postResult
 		case result of
 			LambdaNop -> return ()
 			(LambdaSuccess payload) -> do
-				let url = lecApiPrefix <> "/" <> ct liAwsRequestId <> "/response"
+				let url = lecApiPrefix <> "/runtime/invocation/" <> ct liAwsRequestId <> "/response"
 				let body = Just payload
 				req <- addTraceId <$> makeHttpRequest "POST" url body
 				void . liftIO $ HTTP.httpNoBody req lecHttpManager
 			LambdaError (errType, errMsg) -> do
-				let url = lecApiPrefix <> "/" <> ct liAwsRequestId <> "/error"
+				let url = lecApiPrefix <> "/runtime/invocation/" <> ct liAwsRequestId <> "/error"
 				let body = Just $ Map.fromList
 					[ ( "errorMessage", errMsg )
 					, ( "errorType", errType )

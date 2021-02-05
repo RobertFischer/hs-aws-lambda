@@ -78,7 +78,7 @@ data LambdaInvocation payload = LambdaInvocation
 	, liInvokedFunctionArn :: Text -- ^ This function's ARN
 	, liTraceId :: Text -- ^ The details about this AWS X-Ray trace
 	, liMobileMetadata :: Maybe MobileInvocationMetadata -- ^ The mobile data if the Lambda was called from the AWS Mobile SDK
-	, liPayload :: payload
+	, liPayload :: payload -- ^ The input to the Lambda
 	} deriving (Eq, Generic, ToJSON, FromJSON, Generic1, ToJSON1, FromJSON1)
 
 instance (NFData payload) => NFData (LambdaInvocation payload)

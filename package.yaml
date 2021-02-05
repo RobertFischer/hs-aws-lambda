@@ -1,13 +1,14 @@
-name:                aws-lambda-runtime-api
+name:                hs-aws-lambda
 version:             0.1.0.0
-github:              "RobertFischer/aws-lambda-runtime-api"
-license:             Unlicense
+github:              "RobertFischer/hs-aws-lambda"
+license:             PublicDomain
 author:              "Robert Fischer"
 maintainer:          "smokejumperit@gmail.com"
-copyright:           "(c)2020 Robert Fischer. All Rights Reserved. See UNLICENSE for liscensing terms."
+copyright:           "Released under the Unlicense: https://unlicense.org/"
 
 extra-source-files:
 - README.md
+- UNLICENSE
 
 # Metadata used when publishing your package
 synopsis:            A modern and easy-to-use wrapper for Docker-based Lambda implementations
@@ -30,7 +31,7 @@ ghc-options:
 - -freverse-errors
 - -funclutter-valid-hole-fits
 - -fhelpful-errors
-- -fshow-warning-groups
+- '-fshow-warning-groups'
 - -fPIC
 - -fno-warn-tabs
 - -fno-warn-type-defaults
@@ -112,9 +113,11 @@ library:
   - text-conversions
   - unliftio
 
+  generated-other-modules:
+  - Paths_aws_lambda_runtime_api
+
   # This is where the optimization flags should go
   ghc-options:
-  - -O2
   - -feager-blackholing
   - -fexcess-precision
   - -flate-dmd-anal
@@ -137,3 +140,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - aws-lambda-runtime-api
+

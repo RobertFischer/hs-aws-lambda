@@ -1,0 +1,9 @@
+*.cabal
+.stack-work
+*.tf
+*.tfvars
+.terraform
+.git
+.gitignore
+*.md
+terraform
