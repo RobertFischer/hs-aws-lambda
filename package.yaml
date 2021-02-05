@@ -1,5 +1,5 @@
 name:                hs-aws-lambda
-version:             0.1.0.0
+version:             0.1.0.1
 github:              "RobertFischer/hs-aws-lambda"
 license:             PublicDomain
 author:              "Robert Fischer"
@@ -114,7 +114,7 @@ library:
   - unliftio
 
   generated-other-modules:
-  - Paths_aws_lambda_runtime_api
+  - Paths_hs_aws_lambda
 
   # This is where the optimization flags should go
   ghc-options:
@@ -138,6 +138,10 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+    generated-other-modules:
+    - Paths_hs_aws_lambda
+
     dependencies:
     - aws-lambda-runtime-api
 
