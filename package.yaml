@@ -1,5 +1,5 @@
 name:                hs-aws-lambda
-version:             0.1.0.1
+version:             0.1.0.2
 github:              "RobertFischer/hs-aws-lambda"
 license:             PublicDomain
 author:              "Robert Fischer"
@@ -17,7 +17,7 @@ category:            AWS
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/RobertFischer/aws-lambda-runtime-api#readme>
+description:         Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
 
 # These options are global, so don't put optimization or runtime options here.
 ghc-options:
@@ -41,6 +41,7 @@ ghc-options:
 - -Werror=incomplete-patterns
 - -Werror=overlapping-patterns
 - -Werror=redundant-constraints
+- -Werror=missing-methods
 
 default-extensions:
 - BangPatterns
@@ -110,7 +111,6 @@ library:
   - http-types
   - safe-exceptions
   - text
-  - text-conversions
   - unliftio
 
   generated-other-modules:
@@ -139,9 +139,6 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
 
-    generated-other-modules:
-    - Paths_hs_aws_lambda
-
     dependencies:
-    - aws-lambda-runtime-api
+    - hs-aws-lambda
 

@@ -15,6 +15,13 @@ import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.Internal as HTTP
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Data.Text as Text
+
+cts :: Text -> String
+cts = Text.unpack
+
+cst :: String -> Text
+cst = Text.pack
 
 mkLambdaHeaderName :: (CI.FoldCase s, Semigroup s, IsString s) => s -> CI.CI s
 mkLambdaHeaderName str = CI.mk $ "Lambda-Runtime-" <> str
@@ -75,7 +82,7 @@ doRound ctx = getNextInvocation >>= \case
 		getNextInvocation = handleAnyDeep handleTopException ( Just <$> fetchNext ctx )
 		handler = lecHandler ctx
 		processRequest invoc = handleAnyDeep handleException $ handler invoc
-		handleException e = return $ LambdaError (ct $ exToTypeStr e, ct $ exToHumanStr e)
+		handleException e = return $ LambdaError (cst $ exToTypeStr e, cst $ exToHumanStr e)
 		handleTopException err = handleInvocationException ctx err >> return Nothing
 
 exToTypeStr :: (Exception e) => e -> String
@@ -132,23 +139,23 @@ fetchNext LambdaExecutionContext{lecApiPrefix, lecHttpManager} = do
 		response <- liftIO $ HTTP.httpLbs req lecHttpManager
 		checkResponseStatus response
 		liPayload <- readPayload response
-		liAwsRequestId <- readHeader response requestIdHeader
+		liAwsRequestId <- cst <$> readHeader response requestIdHeader
 		liDeadlineMs <- readDeadline response
-		liInvokedFunctionArn <- readHeader response invokedFunctionArnHeader
-		liTraceId <- readHeader response traceIdHeader
+		liInvokedFunctionArn <- cst <$> readHeader response invokedFunctionArnHeader
+		liTraceId <- cst <$> readHeader response traceIdHeader
 		let liMobileMetadata = readMobileMetadata response
 		return $ LambdaInvocation{..}
 	where
 		url = lecApiPrefix <> "/runtime/invocation/next"
 		readMobileMetadata response = do
-			mimClientContext <- readHeader response clientContextHeader
-			mimCognitoIdentity <- readHeader response cognitoIdentityHeader
+			mimClientContext <- cst <$> readHeader response clientContextHeader
+			mimCognitoIdentity <- cst <$> readHeader response cognitoIdentityHeader
 			return $ MobileInvocationMetadata{..}
 		readHeader response headerName =
 			let headers = HTTP.responseHeaders response in
 			let finder (otherHeaderName, _) = headerName == otherHeaderName in
 			case find finder headers of
-				Just (_,value) -> return . ct $ C8.unpack value
+				Just (_,value) -> return $ C8.unpack value
 				Nothing -> fail $ "Could not find header: " <> show headerName
 		readDeadline response = do
 			headerValue <- readHeader response "Lambda-Runtime-Deadline-Ms"
@@ -184,12 +191,12 @@ postResult
 		case result of
 			LambdaNop -> return ()
 			(LambdaSuccess payload) -> do
-				let url = lecApiPrefix <> "/runtime/invocation/" <> ct liAwsRequestId <> "/response"
+				let url = lecApiPrefix <> "/runtime/invocation/" <> cts liAwsRequestId <> "/response"
 				let body = Just payload
 				req <- addTraceId <$> makeHttpRequest "POST" url body
 				void . liftIO $ HTTP.httpNoBody req lecHttpManager
 			LambdaError (errType, errMsg) -> do
-				let url = lecApiPrefix <> "/runtime/invocation/" <> ct liAwsRequestId <> "/error"
+				let url = lecApiPrefix <> "/runtime/invocation/" <> cts liAwsRequestId <> "/error"
 				let body = Just $ Map.fromList
 					[ ( "errorMessage", errMsg )
 					, ( "errorType", errType )
@@ -199,5 +206,5 @@ postResult
 	where
 		addTraceId req = req
 			{ HTTP.requestHeaders
-				= (traceIdHeader, C8.pack $ ct liTraceId) :  HTTP.requestHeaders req
+				= (traceIdHeader, C8.pack $ cts liTraceId) :  HTTP.requestHeaders req
 			}
