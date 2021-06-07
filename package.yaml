@@ -1,5 +1,5 @@
 name:                hs-aws-lambda
-version:             0.1.0.2
+version:             0.1.0.4
 github:              "RobertFischer/hs-aws-lambda"
 license:             PublicDomain
 author:              "Robert Fischer"

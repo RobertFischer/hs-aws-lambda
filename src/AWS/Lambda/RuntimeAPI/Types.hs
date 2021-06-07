@@ -3,30 +3,19 @@ module AWS.Lambda.RuntimeAPI.Types
 		, LambdaResult(..)
 		, LambdaExecutionContext(..)
 		, MobileInvocationMetadata(..)
-		, Text
-		, module Control.DeepSeq
-		, module Control.Exception.Safe
-		, module Control.Monad
-		, module Data.Aeson
-		, module Data.Function
-		, module Data.String
-		, module Data.Typeable
-		, module Data.Word
-		, module GHC.Generics
+		, ErrorType
+		, ErrorMessage
+		, ErrorInfo
 		) where
 
-import Control.Exception.Safe (throw, MonadThrow)
-import Control.Monad ( void, forever )
-import Data.Aeson (ToJSON, FromJSON, Options, FromJSON1, ToJSON1)
-import Data.Function ( (&) )
-import Data.String ( fromString, IsString(..) )
-import Data.Text (Text)
-import Data.Typeable (typeOf)
-import Data.Word (Word64)
-import GHC.Generics
-import Control.DeepSeq ( NFData, NFData1 )
-import qualified Data.Aeson as JSON
-import qualified Data.Char as Char
+import           Control.DeepSeq     (NFData, NFData1)
+import           Data.Aeson          (FromJSON, FromJSON1, Options, ToJSON,
+                                      ToJSON1)
+import qualified Data.Aeson          as JSON
+import qualified Data.Char           as Char
+import           Data.Text           (Text)
+import           Data.Word           (Word64)
+import           GHC.Generics
 import qualified Network.HTTP.Client as HTTP
 
 -- | Our implementation of how to map the field names to JSON labels
@@ -53,8 +42,8 @@ jsonOptions = JSON.defaultOptions
 --
 -- (Pull requests very welcome.)
 data MobileInvocationMetadata = MobileInvocationMetadata
-	{ mimClientContext :: Text -- ^ the client's execution context
-	, mimCognitoIdentity :: Text -- ^ the client's identity
+	{ mimClientContext :: Text  -- ^ the client's execution context
+	, mimCognitoIdentity :: Text-- ^ the client's identity
 	} deriving (Show, Eq, Generic, NFData)
 
 instance ToJSON MobileInvocationMetadata where
@@ -66,12 +55,15 @@ instance FromJSON MobileInvocationMetadata where
 
 -- | Represents the data provided to an invocation of the lambda
 data LambdaInvocation payload = LambdaInvocation
-	{ liAwsRequestId :: Text -- ^ The unique ID for this request
-	, liDeadlineMs :: Word64 -- ^ The timetsamp of the deadline in Unix time
-	, liInvokedFunctionArn :: Text -- ^ This function's ARN
-	, liTraceId :: Text -- ^ The details about this AWS X-Ray trace
-	, liMobileMetadata :: Maybe MobileInvocationMetadata -- ^ The mobile data if the Lambda was called from the AWS Mobile SDK
-	, liPayload :: payload -- ^ The input to the Lambda
+	{ liAwsRequestId :: Text      -- ^ The unique ID for this request
+	, liDeadlineMs
+		:: Word64 -- ^ The timetsamp of the deadline in Unix time
+	, liInvokedFunctionArn :: Text-- ^ This function's ARN
+	, liTraceId :: Text           -- ^ The details about this AWS X-Ray trace
+	, liMobileMetadata
+		:: Maybe MobileInvocationMetadata -- ^ The mobile data if the Lambda was called from the AWS Mobile SDK
+	, liPayload
+		:: payload -- ^ The input to the Lambda
 	} deriving (Show, Eq, Generic, ToJSON, FromJSON, Generic1, ToJSON1, FromJSON1)
 
 instance (NFData payload) => NFData (LambdaInvocation payload)
@@ -92,7 +84,9 @@ instance (NFData payload) => NFData (LambdaResult payload)
 instance NFData1 LambdaResult
 
 data LambdaExecutionContext a m b = LambdaExecutionContext
-	{ lecApiPrefix :: String
+	{ lecApiPrefix
+	  :: String
 	, lecHttpManager :: HTTP.Manager
-	, lecHandler :: LambdaInvocation a -> m (LambdaResult b)
+	, lecHandler
+		:: LambdaInvocation a -> m (LambdaResult b)
 	}

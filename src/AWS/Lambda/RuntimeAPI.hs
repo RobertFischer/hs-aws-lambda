@@ -2,20 +2,27 @@ module AWS.Lambda.RuntimeAPI
 	( runLambda
 	) where
 
-import AWS.Lambda.RuntimeAPI.Types
-import Data.Aeson ( encode, eitherDecode' )
-import Data.List ( find )
-import System.Environment ( lookupEnv )
-import Text.Read ( readMaybe )
-import UnliftIO
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.CaseInsensitive as CI
-import qualified Data.Map.Strict as Map
-import qualified Network.HTTP.Client as HTTP
+import           AWS.Lambda.RuntimeAPI.Types
+import           Control.DeepSeq              (NFData)
+import           Control.Exception.Safe       (MonadThrow)
+import           Control.Monad                (forever, void)
+import           Data.Aeson                   (FromJSON, ToJSON, eitherDecode',
+                                               encode)
+import qualified Data.ByteString.Char8        as C8
+import qualified Data.CaseInsensitive         as CI
+import           Data.List                    (find)
+import qualified Data.Map.Strict              as Map
+import           Data.String                  (IsString (..))
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
+import           Data.Typeable                (typeOf)
+import qualified Network.HTTP.Client          as HTTP
 import qualified Network.HTTP.Client.Internal as HTTP
-import qualified Network.HTTP.Types.Header as HTTP
-import qualified Network.HTTP.Types.Status as HTTP
-import qualified Data.Text as Text
+import qualified Network.HTTP.Types.Header    as HTTP
+import qualified Network.HTTP.Types.Status    as HTTP
+import           System.Environment           (lookupEnv)
+import           Text.Read                    (readMaybe)
+import           UnliftIO
 
 cts :: Text -> String
 cts = Text.unpack
