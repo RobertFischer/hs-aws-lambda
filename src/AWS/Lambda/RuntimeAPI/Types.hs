@@ -21,17 +21,14 @@ import qualified Network.HTTP.Client as HTTP
 -- | Our implementation of how to map the field names to JSON labels
 modifyFieldLabel :: String -> String
 modifyFieldLabel str =
-		if null trimmed then
-			str
-		else
-			trimmed
-	where
-		trimmed = dropWhile Char.isLower str
+	case dropWhile Char.isLower str of
+		[] -> str
+		rest -> rest
 
 jsonOptions :: Options
 jsonOptions = JSON.defaultOptions
 	{ JSON.fieldLabelModifier = modifyFieldLabel
-	, JSON.omitNothingFields = True
+	, JSON.omitNothingFields = False
 	, JSON.unwrapUnaryRecords = True
 	, JSON.tagSingleConstructors = False
 	}
@@ -73,9 +70,10 @@ type ErrorType = Text
 type ErrorMessage = Text
 type ErrorInfo = (ErrorType, ErrorMessage)
 
+
 -- | The two possible results of a Lambda execution: success or failure
 data LambdaResult payload
-	= LambdaSuccess payload -- ^ Denotes success and provides the value to return
+	= LambdaSuccess payload    -- ^ Denotes success with the value to encode to JSON
 	| LambdaError ErrorInfo -- ^ Denotes failure and provides details
 	| LambdaNop             -- ^ Denotes that no invocation was provided
 	deriving (Show, Eq, Generic, ToJSON, FromJSON, Generic1, ToJSON1, FromJSON1)

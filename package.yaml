@@ -1,144 +1,148 @@
-name:                hs-aws-lambda
-version:             0.1.0.4
-github:              "RobertFischer/hs-aws-lambda"
-license:             PublicDomain
-author:              "Robert Fischer"
-maintainer:          "smokejumperit@gmail.com"
-copyright:           "Released under the Unlicense: https://unlicense.org/"
+name: hs-aws-lambda
+version: 0.2.0.0
+github: "RobertFischer/hs-aws-lambda"
+license: PublicDomain
+author: "Robert Fischer"
+maintainer: "smokejumperit@gmail.com"
+copyright: "Released under the Unlicense: https://unlicense.org/"
 
 extra-source-files:
-- README.md
-- UNLICENSE
+  - README.md
+  - UNLICENSE
 
 # Metadata used when publishing your package
-synopsis:            A modern and easy-to-use wrapper for Docker-based Lambda implementations
-category:            AWS
+synopsis: A modern and easy-to-use wrapper for Docker-based Lambda implementations. Now with API Gateway support!
+category: AWS
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
+description: Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
 
 # These options are global, so don't put optimization or runtime options here.
 ghc-options:
-- -Wall
-- -Wincomplete-record-updates
-- -Wincomplete-uni-patterns
-- -fprint-expanded-synonyms
-- -fprint-explicit-coercions
-- -fprint-equality-relations
-- -fprint-typechecker-elaboration
-- -freverse-errors
-- -funclutter-valid-hole-fits
-- -fhelpful-errors
-- '-fshow-warning-groups'
-- -fPIC
-- -fno-warn-tabs
-- -fno-warn-type-defaults
-- -Werror=compat
-- -Werror=partial-fields
-- -Werror=missing-fields
-- -Werror=incomplete-patterns
-- -Werror=overlapping-patterns
-- -Werror=redundant-constraints
-- -Werror=missing-methods
+  - -Wall
+  - -Werror=compat
+  - -Werror=incomplete-patterns
+  - -Werror=missing-fields
+  - -Werror=missing-methods
+  - -Werror=overlapping-patterns
+  - -Werror=partial-fields
+  - -Werror=redundant-constraints
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -fPIC
+  - -fhelpful-errors
+  - -fno-warn-deriving-defaults
+  - -fno-warn-tabs
+  - -fno-warn-type-defaults
+  - -fprint-equality-relations
+  - -fprint-expanded-synonyms
+  - -fprint-explicit-coercions
+  - -fprint-typechecker-elaboration
+  - -freverse-errors
+  - -fshow-warning-groups
+  - -funclutter-valid-hole-fits
 
 default-extensions:
-- BangPatterns
-- BinaryLiterals
-- CPP
-- ConstraintKinds
-- DataKinds
-- DefaultSignatures
-- DeriveAnyClass
-- DeriveDataTypeable
-- DeriveFoldable
-- DeriveFunctor
-- DeriveGeneric
-- DeriveLift
-- DeriveTraversable
-- DoAndIfThenElse
-- EmptyDataDecls
-- ExistentialQuantification
-- ExtendedDefaultRules
-- FlexibleContexts
-- FlexibleInstances
-- ForeignFunctionInterface
-- FunctionalDependencies
-- GADTs
-- GeneralizedNewtypeDeriving
-- InstanceSigs
-- KindSignatures
-- LambdaCase
-- MagicHash
-- MultiParamTypeClasses
-- MultiWayIf
-- NamedFieldPuns
-- OverloadedLists
-- OverloadedStrings
-- PackageImports
-- PartialTypeSignatures
-- PatternGuards
-- PolyKinds
-- QuasiQuotes
-- RankNTypes
-- RecordWildCards
-- ScopedTypeVariables
-- StandaloneDeriving
-- StaticPointers
-- TemplateHaskell
-- TupleSections
-- TypeFamilies
-- TypeOperators
-- TypeSynonymInstances
-- UnboxedTuples
-- UnliftedFFITypes
-- ViewPatterns
-- TypeFamilyDependencies
+  - TypeApplications
+  - BangPatterns
+  - BinaryLiterals
+  - CPP
+  - ConstraintKinds
+  - DataKinds
+  - DefaultSignatures
+  - DeriveDataTypeable
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveAnyClass
+  - DeriveLift
+  - DeriveTraversable
+  - DoAndIfThenElse
+  - EmptyDataDecls
+  - ExistentialQuantification
+  - ExtendedDefaultRules
+  - FlexibleContexts
+  - FlexibleInstances
+  - ForeignFunctionInterface
+  - FunctionalDependencies
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - InstanceSigs
+  - KindSignatures
+  - LambdaCase
+  - MagicHash
+  - MultiParamTypeClasses
+  - MultiWayIf
+  - NamedFieldPuns
+  - OverloadedLists
+  - OverloadedStrings
+  - PackageImports
+  - PartialTypeSignatures
+  - PatternGuards
+  - PolyKinds
+  - QuasiQuotes
+  - RankNTypes
+  - RecordWildCards
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - StaticPointers
+  - TemplateHaskell
+  - TupleSections
+  - TypeFamilies
+  - TypeOperators
+  - TypeSynonymInstances
+  - UnboxedTuples
+  - UnliftedFFITypes
+  - ViewPatterns
+  - TypeFamilyDependencies
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
+  - time >= 1.9.3 && < 2
 
 library:
   source-dirs: src
   dependencies:
-  - aeson
-  - bytestring
-  - case-insensitive
-  - containers
-  - deepseq
-  - http-client
-  - http-types
-  - safe-exceptions
-  - text
-  - unliftio
+    - aeson
+    - bytestring
+    - case-insensitive
+    - containers
+    - deepseq
+    - http-client
+    - http-types
+    - safe-exceptions
+    - text
+    - unliftio
+    - base64
+    - vector
 
   generated-other-modules:
-  - Paths_hs_aws_lambda
+    - Paths_hs_aws_lambda
 
   # This is where the optimization flags should go
   ghc-options:
-  - -feager-blackholing
-  - -fexcess-precision
-  - -flate-dmd-anal
-  - -fmax-inline-alloc-size=1024
-  - -fmax-simplifier-iterations=16
-  - -fsimplifier-phases=8
-  - -fspec-constr-keen
-  - -fspec-constr-count=12
-  - -fspecialise-aggressively
-  - -flate-specialise
-  - -fstatic-argument-transformation
+    - -feager-blackholing
+    - -fexcess-precision
+    - -flate-dmd-anal
+    - -fmax-inline-alloc-size=1024
+    - -fmax-simplifier-iterations=16
+    - -fsimplifier-phases=8
+    - -fspec-constr-keen
+    - -fspec-constr-count=12
+    - -fspecialise-aggressively
+    - -flate-specialise
+    - -fstatic-argument-transformation
 
 tests:
   aws-lambda-runtime-api-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
 
     dependencies:
-    - hs-aws-lambda
-
+      - hs-aws-lambda

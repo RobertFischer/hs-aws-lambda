@@ -6,7 +6,7 @@ cabal-version: 2.0
 
 name:           hs-aws-lambda
 version:        0.1.0.4
-synopsis:       A modern and easy-to-use wrapper for Docker-based Lambda implementations
+synopsis:       A modern and easy-to-use wrapper for Docker-based Lambda implementations. Now with API Gateway support!
 description:    Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
 category:       AWS
 homepage:       https://github.com/RobertFischer/hs-aws-lambda#readme
@@ -27,6 +27,8 @@ source-repository head
 
 library
   exposed-modules:
+      AWS.ApiGateway.RuntimeAPI
+      AWS.ApiGateway.RuntimeAPI.Types
       AWS.Lambda.RuntimeAPI
       AWS.Lambda.RuntimeAPI.Types
   other-modules:
@@ -36,17 +38,18 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      TypeApplications
       BangPatterns
       BinaryLiterals
       CPP
       ConstraintKinds
       DataKinds
       DefaultSignatures
-      DeriveAnyClass
       DeriveDataTypeable
       DeriveFoldable
       DeriveFunctor
       DeriveGeneric
+      DeriveAnyClass
       DeriveLift
       DeriveTraversable
       DoAndIfThenElse
@@ -87,10 +90,11 @@ library
       UnliftedFFITypes
       ViewPatterns
       TypeFamilyDependencies
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -fprint-expanded-synonyms -fprint-explicit-coercions -fprint-equality-relations -fprint-typechecker-elaboration -freverse-errors -funclutter-valid-hole-fits -fhelpful-errors -fshow-warning-groups -fPIC -fno-warn-tabs -fno-warn-type-defaults -Werror=compat -Werror=partial-fields -Werror=missing-fields -Werror=incomplete-patterns -Werror=overlapping-patterns -Werror=redundant-constraints -Werror=missing-methods -feager-blackholing -fexcess-precision -flate-dmd-anal -fmax-inline-alloc-size=1024 -fmax-simplifier-iterations=16 -fsimplifier-phases=8 -fspec-constr-keen -fspec-constr-count=12 -fspecialise-aggressively -flate-specialise -fstatic-argument-transformation
+  ghc-options: -Wall -Werror=compat -Werror=incomplete-patterns -Werror=missing-fields -Werror=missing-methods -Werror=overlapping-patterns -Werror=partial-fields -Werror=redundant-constraints -Wincomplete-record-updates -Wincomplete-uni-patterns -fPIC -fhelpful-errors -fno-warn-deriving-defaults -fno-warn-tabs -fno-warn-type-defaults -fprint-equality-relations -fprint-expanded-synonyms -fprint-explicit-coercions -fprint-typechecker-elaboration -freverse-errors -fshow-warning-groups -funclutter-valid-hole-fits -feager-blackholing -fexcess-precision -flate-dmd-anal -fmax-inline-alloc-size=1024 -fmax-simplifier-iterations=16 -fsimplifier-phases=8 -fspec-constr-keen -fspec-constr-count=12 -fspecialise-aggressively -flate-specialise -fstatic-argument-transformation
   build-depends:
       aeson
     , base >=4.7 && <5
+    , base64
     , bytestring
     , case-insensitive
     , containers
@@ -99,7 +103,9 @@ library
     , http-types
     , safe-exceptions
     , text
+    , time >=1.9.3 && <2
     , unliftio
+    , vector
   default-language: Haskell2010
 
 test-suite aws-lambda-runtime-api-test
@@ -110,17 +116,18 @@ test-suite aws-lambda-runtime-api-test
   hs-source-dirs:
       test
   default-extensions:
+      TypeApplications
       BangPatterns
       BinaryLiterals
       CPP
       ConstraintKinds
       DataKinds
       DefaultSignatures
-      DeriveAnyClass
       DeriveDataTypeable
       DeriveFoldable
       DeriveFunctor
       DeriveGeneric
+      DeriveAnyClass
       DeriveLift
       DeriveTraversable
       DoAndIfThenElse
@@ -161,8 +168,9 @@ test-suite aws-lambda-runtime-api-test
       UnliftedFFITypes
       ViewPatterns
       TypeFamilyDependencies
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -fprint-expanded-synonyms -fprint-explicit-coercions -fprint-equality-relations -fprint-typechecker-elaboration -freverse-errors -funclutter-valid-hole-fits -fhelpful-errors -fshow-warning-groups -fPIC -fno-warn-tabs -fno-warn-type-defaults -Werror=compat -Werror=partial-fields -Werror=missing-fields -Werror=incomplete-patterns -Werror=overlapping-patterns -Werror=redundant-constraints -Werror=missing-methods -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Werror=compat -Werror=incomplete-patterns -Werror=missing-fields -Werror=missing-methods -Werror=overlapping-patterns -Werror=partial-fields -Werror=redundant-constraints -Wincomplete-record-updates -Wincomplete-uni-patterns -fPIC -fhelpful-errors -fno-warn-deriving-defaults -fno-warn-tabs -fno-warn-type-defaults -fprint-equality-relations -fprint-expanded-synonyms -fprint-explicit-coercions -fprint-typechecker-elaboration -freverse-errors -fshow-warning-groups -funclutter-valid-hole-fits -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , hs-aws-lambda
+    , time >=1.9.3 && <2
   default-language: Haskell2010

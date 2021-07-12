@@ -185,9 +185,7 @@ makeHttpRequest method url maybeBody =
 				[ ( HTTP.hAccept, "application/json" )
 				, ( HTTP.hContentType, "application/json" )
 				]
-			, HTTP.requestBody = HTTP.RequestBodyLBS $ case maybeBody of
-					Nothing -> ""
-					Just body -> encode body
+			, HTTP.requestBody = HTTP.RequestBodyLBS $ maybe "" encode maybeBody
 			}
 
 postResult :: (MonadUnliftIO m, MonadThrow m, ToJSON b) => LambdaExecutionContext a m b -> LambdaInvocation a -> LambdaResult b -> m ()
