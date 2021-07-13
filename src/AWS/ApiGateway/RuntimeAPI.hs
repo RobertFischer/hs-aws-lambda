@@ -1,5 +1,7 @@
 module AWS.ApiGateway.RuntimeAPI
 	( runLambda
+	, module AWS.ApiGateway.RuntimeAPI.Types
+	, module AWS.Lambda.RuntimeAPI.Types
 	) where
 
 import           AWS.ApiGateway.RuntimeAPI.Types
