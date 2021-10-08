@@ -13,12 +13,20 @@ module AWS.ApiGateway.RuntimeAPI.Types
 		, mkApiGatewayResponseJSON
 		, mkApiGatewayResponseStatus
 		, ContentType
+		, agrQueryParam
+		, agrQueryParamExists
+		, agrPathParam
+		, agrPathParamExists
+		, agrStageVar
+		, agrStageVarExists
+		, agrHeader
+		, agrHeaderExists
+		, ApiGatewayRequestAuth(..)
+		, ApiGatewayRequestAuthJwt(..)
 		) where
 
-import           Control.DeepSeq            (NFData, NFData1)
-import           Data.Aeson                 (FromJSON, FromJSON1, FromJSONKey,
-                                             Options, ToJSON, ToJSON1,
-                                             ToJSONKey)
+import           Control.DeepSeq            (NFData)
+import           Data.Aeson                 (FromJSON, FromJSONKey, Options, ToJSON, ToJSONKey)
 import qualified Data.Aeson                 as JSON
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString.Base64     as BSB64
@@ -28,15 +36,14 @@ import           Data.CaseInsensitive       (CI)
 import qualified Data.CaseInsensitive       as CI
 import qualified Data.Char                  as Char
 import           Data.Map                   (Map)
-import           Data.String                (IsString)
+import qualified Data.Map as M
+import           Data.String                (IsString(..))
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding.Base64  as TB64
 import           Data.Time.Clock.System     (SystemTime (..))
 import           Data.Time.LocalTime        (ZonedTime (..))
-import           Data.Word                  (Word64)
 import           GHC.Generics
-import qualified Network.HTTP.Client        as HTTP
 import qualified Network.HTTP.Types         as HTTP
 
 -- | Newtype wrapper around header names to control JSON serialization and work
@@ -46,34 +53,104 @@ newtype HeaderName = HeaderName (CI Text) deriving (Show, Eq, Generic, NFData, O
 -- | Converts an arbitrary text value into a 'HeaderName'.
 mkHeaderName :: Text -> HeaderName
 mkHeaderName = HeaderName . CI.mk
+{-# INLINE mkHeaderName #-}
+
+instance IsString HeaderName where
+	fromString = mkHeaderName . T.pack
+	{-# INLINE fromString #-}
 
 instance ToJSON HeaderName where
 	toJSON (HeaderName t) = JSON.toJSON $ CI.foldedCase t
+	{-# INLINE toJSON #-}
 
 instance FromJSON HeaderName where
 	parseJSON = fmap (HeaderName . CI.mk @Text) . JSON.parseJSON
+	{-# INLINE parseJSON #-}
 
--- | A Version 2.0 API Gateway Request payload
+-- | A Version 2.0 API Gateway Proxy Request payload
 data ApiGatewayRequest = ApiGatewayRequest
-	{ agrRouteKey :: Text
+	{ agrVersion :: Text
+	, agrRouteKey :: Text
 	, agrRawPath :: Text
 	, agrRawQueryString :: Text
-	, agrCookies
-		:: [Text]
-	, agrHeaders -- ^ Repeated headers have values combined with commas.
-		:: Map HeaderName Text
-	, agrQueryStringParameters
-		:: Map Text Text
-	, agrRequestContext
-		:: ApiGatewayRequestContext
-	, agrBody -- ^ See 'agrBodyT', 'agrBodyBS', and 'agrBodyJ'
-		:: JSON.Value
-	, agrPathParameters
-		:: Map Text Text
-	, agrStageVariables
-		:: Map Text Text
+	, agrCookies :: Maybe [Text]
+	, agrHeaders :: Map HeaderName (Maybe Text) -- ^ Multiply-provided headers are intercalated with commas. See 'agrHeader', 'agrHeaderExists'
+	, agrQueryStringParameters :: Maybe (Map Text (Maybe Text)) -- ^ See 'agrQueryParam', 'agrQueryParamExists'
+	, agrBody :: Maybe Text -- ^ See 'agrBodyT', 'agrBodyBS', and 'agrBodyJ'
+	, agrPathParameters :: Maybe (Map Text (Maybe Text)) -- ^ See 'agrPathParam', 'agrPathParamExists'
 	, agrIsBase64Encoded :: Bool
+	, agrStageVariables :: Maybe (Map Text (Maybe Text)) -- ^ See 'agrStageVar', 'agrStageVarExists'
+	, agrRequestContext :: ApiGatewayRequestContext
 	} deriving (Show, Generic, NFData, FromJSON)
+
+-- | Checks for the existence of a request header
+agrHeaderExists :: ApiGatewayRequest -> HeaderName -> Bool
+agrHeaderExists ApiGatewayRequest{agrHeaders} key = M.member key agrHeaders
+
+-- | Convenience accessor for request headers.  Note that it will fail if the 
+--   specified key exists but its associated value is 'Nothing'.  If you just want
+--   to check for a header's existence, use 'agrHeaderExists'
+agrHeader :: (MonadFail m) => ApiGatewayRequest -> HeaderName -> m Text
+agrHeader ApiGatewayRequest{agrHeaders} key = 
+		case M.lookup key agrHeaders of 
+			Nothing -> fail $ "Could not find key " <> show key <> " in request headers: " <> show agrHeaders
+			Just maybeVal -> case maybeVal of 
+				Nothing -> fail $ "No value provided for key " <> show key <> " in request headers: " <> show agrHeaders
+				Just val -> return val
+
+-- | Checks for the existence of a stage variable
+agrStageVarExists :: ApiGatewayRequest -> Text -> Bool
+agrStageVarExists ApiGatewayRequest{agrStageVariables} key = 
+	maybe False (M.member key) agrStageVariables
+
+-- | Convenience accessor for stage variables.  Note that it will fail if the 
+--   specified key exists but its associated value is 'Nothing'.  If you just want
+--   to check for parameter existence, use 'agrStageVarExists'
+agrStageVar :: (MonadFail m) => ApiGatewayRequest -> Text -> m Text
+agrStageVar ApiGatewayRequest{agrStageVariables} key = 
+	case agrStageVariables of 
+		Nothing -> fail "No stage variables provided"
+		Just params -> case M.lookup key params of 
+			Nothing -> fail $ "Could not find key " <> show key <> " in stage variables: " <> show params
+			Just maybeVal -> case maybeVal of 
+				Nothing -> fail $ "No value provided for key " <> show key <> " in stage variables: " <> show params
+				Just val -> return val
+
+-- | Checks for the existence of a path parameter
+agrPathParamExists :: ApiGatewayRequest -> Text -> Bool
+agrPathParamExists ApiGatewayRequest{agrPathParameters} key = 
+	maybe False (M.member key) agrPathParameters
+
+-- | Convenience accessor for path parameters.  Note that it will fail if the 
+--   specified key exists but its associated value is 'Nothing'.  If you just want
+--   to check for parameter existence, use 'agrPathParamExists'
+agrPathParam :: (MonadFail m) => ApiGatewayRequest -> Text -> m Text
+agrPathParam ApiGatewayRequest{agrPathParameters} key = 
+	case agrPathParameters of 
+		Nothing -> fail "No path parameters provided"
+		Just params -> case M.lookup key params of 
+			Nothing -> fail $ "Could not find key " <> show key <> " in path parameters: " <> show params
+			Just maybeVal -> case maybeVal of 
+				Nothing -> fail $ "No value provided for key " <> show key <> " in path parameters: " <> show params
+				Just val -> return val
+
+-- | Checks for the existence of a query parameter
+agrQueryParamExists :: ApiGatewayRequest -> Text -> Bool
+agrQueryParamExists ApiGatewayRequest{agrQueryStringParameters} key = 
+	maybe False (M.member key) agrQueryStringParameters
+
+-- | Convenience accessor for query parameters.  Note that it will fail if the 
+--   specified key exists but its associated value is 'Nothing'.  If you just want
+--   to check for parameter existence, use 'agrQueryParamExists'
+agrQueryParam :: (MonadFail m) => ApiGatewayRequest -> Text -> m Text
+agrQueryParam ApiGatewayRequest{agrQueryStringParameters} key = 
+	case agrQueryStringParameters of 
+		Nothing -> fail "No query string parameters provided"
+		Just params -> case M.lookup key params of 
+			Nothing -> fail $ "Could not find key " <> show key <> " in query string parameters: " <> show params
+			Just maybeVal -> case maybeVal of 
+				Nothing -> fail $ "No value provided for key " <> show key <> " in query string parameters: " <> show params
+				Just val -> return val
 
 -- | Provides a 'ByteString' of the body.  If 'agrIsBase64Encoded' is 'True' and the
 -- body is JSON text, then the body is decoded from Base64.  Otherwise, the JSON value
@@ -82,7 +159,7 @@ agrBodyBS :: (MonadFail m) => ApiGatewayRequest -> m ByteString
 agrBodyBS ApiGatewayRequest{agrBody,agrIsBase64Encoded} =
 	if agrIsBase64Encoded then
 		case agrBody of
-			JSON.String t ->
+			Just t ->
 				case BSB64.decodeBase64 . C8.pack $ T.unpack t of
 					Left err -> fail $ T.unpack err
 					Right value -> return value
@@ -94,7 +171,7 @@ agrBodyBS ApiGatewayRequest{agrBody,agrIsBase64Encoded} =
 -- | Provides a 'Text' of the body, decoding
 agrBodyT :: (MonadFail m) => ApiGatewayRequest -> m Text
 agrBodyT ApiGatewayRequest{agrBody,agrIsBase64Encoded} = case agrBody of
-	JSON.String t ->
+	Just t ->
 		if agrIsBase64Encoded then
 			case TB64.decodeBase64 t of
 				Left err -> fail $ T.unpack err
@@ -110,24 +187,35 @@ agrBodyJ agr = agrBodyBS agr >>= \bodybs ->
 			Left err -> fail err
 			Right val -> return val
 
+data ApiGatewayRequestAuthJwt = ApiGatewayRequestAuthJwt
+	{ agrajClaims :: Map Text JSON.Value
+	, agrajScopes :: [Text]
+	} deriving (Show, Generic, NFData)
+
+instance FromJSON ApiGatewayRequestAuthJwt where
+	parseJSON = JSON.genericParseJSON jsonOptions'
+
+newtype ApiGatewayRequestAuth = ApiGatewayRequestAuth
+	{ agraJwt :: Maybe ApiGatewayRequestAuthJwt
+	} deriving (Show, Generic, NFData)
+
+instance FromJSON ApiGatewayRequestAuth where
+	parseJSON = JSON.genericParseJSON jsonOptions'
+
 -- | The "requestContext" field of the API Gateway Request payload
 data ApiGatewayRequestContext = ApiGatewayRequestContext
 	{ agrcAccountId :: Text
 	, agrcApiId :: Text
+	, agrcAuthorizer :: Maybe ApiGatewayRequestAuth
 	, agrcDomainName :: Text
 	, agrcDomainPrefix :: Text
-	, agrcHttp
-		:: ApiGatewayRequestHttpInfo
+	, agrcHttp :: ApiGatewayRequestHttpInfo
 	, agrcRequestId :: Text
 	, agrcRouteKey :: Text
 	, agrcStage :: Text
 	, agrcTime :: ZonedTime
 	, agrcTimeEpoch :: SystemTime
 	} deriving (Show, Generic, NFData)
-
-instance ToJSON ApiGatewayRequestContext where
-	toJSON = JSON.genericToJSON jsonOptions'
-	toEncoding = JSON.genericToEncoding jsonOptions'
 
 instance FromJSON ApiGatewayRequestContext where
 	parseJSON = JSON.genericParseJSON jsonOptions'

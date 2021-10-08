@@ -1,5 +1,5 @@
 name: hs-aws-lambda
-version: 0.2.0.0
+version: 0.2.1.0
 github: "RobertFischer/hs-aws-lambda"
 license: PublicDomain
 author: "Robert Fischer"
@@ -11,13 +11,17 @@ extra-source-files:
   - UNLICENSE
 
 # Metadata used when publishing your package
-synopsis: A modern and easy-to-use wrapper for Docker-based Lambda implementations. Now with API Gateway support!
+synopsis: >
+  A modern and easy-to-use wrapper for Docker-based Lambda implementations.
+  Now with API Gateway support!
 category: AWS
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description: Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
+description: >
+  Please see the README on GitHub at
+  <https://github.com/RobertFischer/hs-aws-lambda#readme>
 
 # These options are global, so don't put optimization or runtime options here.
 ghc-options:
@@ -100,12 +104,12 @@ default-extensions:
 
 dependencies:
   - base >= 4.7 && < 5
-  - time >= 1.9.3 && < 2
 
 library:
   source-dirs: src
   dependencies:
     - aeson
+    - base64
     - bytestring
     - case-insensitive
     - containers
@@ -114,8 +118,8 @@ library:
     - http-types
     - safe-exceptions
     - text
+    - time >= 1.9.3 && < 2
     - unliftio
-    - base64
     - vector
 
   generated-other-modules:

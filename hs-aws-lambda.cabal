@@ -5,8 +5,9 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           hs-aws-lambda
-version:        0.2.0.0
+version:        0.2.1.0
 synopsis:       A modern and easy-to-use wrapper for Docker-based Lambda implementations. Now with API Gateway support!
+
 description:    Please see the README on GitHub at <https://github.com/RobertFischer/hs-aws-lambda#readme>
 category:       AWS
 homepage:       https://github.com/RobertFischer/hs-aws-lambda#readme
@@ -172,5 +173,4 @@ test-suite aws-lambda-runtime-api-test
   build-depends:
       base >=4.7 && <5
     , hs-aws-lambda
-    , time >=1.9.3 && <2
   default-language: Haskell2010
