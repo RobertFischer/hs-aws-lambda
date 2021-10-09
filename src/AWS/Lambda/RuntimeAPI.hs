@@ -24,6 +24,7 @@ import qualified Network.HTTP.Types.Status    as HTTP
 import           System.Environment           (lookupEnv)
 import           Text.Read                    (readMaybe)
 import           UnliftIO
+import Data.Maybe (fromMaybe)
 
 cts :: Text -> String
 cts = Text.unpack
@@ -101,7 +102,9 @@ doRound ctx = getNextInvocation >>= \case
 		getNextInvocation = handleAnyDeep handleTopException ( Just <$> fetchNext ctx )
 		handler = lecHandler ctx
 		processRequest invoc = handleAnyDeep handleException $ handler invoc
-		handleException e = return $ LambdaError (cst $ exToTypeStr e, cst $ exToHumanStr e)
+		handleException e = 
+			let inEx = fromMaybe e (fromException e) in
+			return $ LambdaError ( cst . show $ typeOf inEx, cst $ displayException inEx)
 		handleTopException err = handleInvocationException ctx err >> return Nothing
 
 exToTypeStr :: (Exception e) => e -> String
