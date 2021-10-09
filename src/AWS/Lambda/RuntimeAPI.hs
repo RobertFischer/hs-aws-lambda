@@ -1,5 +1,6 @@
 module AWS.Lambda.RuntimeAPI
 	( runLambda
+	, module AWS.Lambda.RuntimeAPI.Types
 	) where
 
 import           AWS.Lambda.RuntimeAPI.Types
@@ -26,36 +27,47 @@ import           UnliftIO
 
 cts :: Text -> String
 cts = Text.unpack
+{-# INLINE cts #-}
 
 cst :: String -> Text
 cst = Text.pack
+{-# INLINE cst #-}
 
 mkLambdaHeaderName :: (CI.FoldCase s, Semigroup s, IsString s) => s -> CI.CI s
 mkLambdaHeaderName str = CI.mk $ "Lambda-Runtime-" <> str
+{-# INLINE mkLambdaHeaderName #-}
 
 requestIdHeader :: HTTP.HeaderName
 requestIdHeader = mkLambdaHeaderName "Aws-Request-Id"
+{-# INLINE requestIdHeader #-}
 
 invokedFunctionArnHeader :: HTTP.HeaderName
 invokedFunctionArnHeader = mkLambdaHeaderName "Invoked-Function-Arn"
+{-# INLINE invokedFunctionArnHeader #-}
 
 traceIdHeader :: HTTP.HeaderName
 traceIdHeader = mkLambdaHeaderName "Trace-Id"
+{-# INLINE traceIdHeader #-}
 
 clientContextHeader :: HTTP.HeaderName
 clientContextHeader = mkLambdaHeaderName "Client-Context"
+{-# INLINE clientContextHeader #-}
 
 cognitoIdentityHeader :: HTTP.HeaderName
 cognitoIdentityHeader = mkLambdaHeaderName "Cognito-Identity"
+{-# INLINE cognitoIdentityHeader #-}
 
 unhandledErrorHeader :: HTTP.Header
 unhandledErrorHeader = ( mkLambdaHeaderName "Function-Error-Type", "Unhandled" )
+{-# INLINE unhandledErrorHeader #-}
 
 apiVersion :: String
 apiVersion = "2018-06-01"
+{-# INLINE apiVersion #-}
 
 apiHostEnvVarName :: String
 apiHostEnvVarName = "AWS_LAMBDA_RUNTIME_API"
+{-# INLINE apiHostEnvVarName #-}
 
 -- | This function is intended to be your `main` implementation.  Given a handler for 'LambdaInvocation' instances,
 --   it loops indefinitely (until AWS terminates the process) on the retrieval of invocations. It feeds each of those
@@ -94,9 +106,11 @@ doRound ctx = getNextInvocation >>= \case
 
 exToTypeStr :: (Exception e) => e -> String
 exToTypeStr = show . typeOf
+{-# INLINE exToTypeStr #-}
 
 exToHumanStr :: (Exception e) => e -> String
 exToHumanStr = displayException
+{-# INLINE exToHumanStr #-}
 
 handleInvocationException :: (MonadIO m, Exception e) => LambdaExecutionContext a m b -> e -> m ()
 handleInvocationException
